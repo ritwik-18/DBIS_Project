@@ -27,4 +27,4 @@ if __name__ == "__main__":
         print("Successfully connected to the database.")
         connection.close()
     except Exception as e:
-        print(f"Database connection failed: {e}")
+        print(f"Database connection failed: {e}")   
