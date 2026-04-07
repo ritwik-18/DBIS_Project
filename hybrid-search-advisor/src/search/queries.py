@@ -8,7 +8,7 @@ Defines Path A (Vector First) and Path B (Filter First) SQL structures.
 # Relies on the HNSW index to quickly find semantic matches, then filters out bad IDs.
 # Best when the filter keeps most of the data.
 PATH_A_QUERY = """
-    SELECT id, title, author, category, publish_date, 
+    SELECT id, title, author, category, 
            1 - (embedding <-> %s::vector) AS similarity
     FROM documents
     WHERE {filter_clause}
@@ -22,11 +22,11 @@ PATH_A_QUERY = """
 # Best when the filter deletes > 80% of the data.
 PATH_B_QUERY = """
     WITH filtered_docs AS (
-        SELECT id, title, author, category, publish_date, embedding
+        SELECT id, title, author, category, embedding
         FROM documents
         WHERE {filter_clause}
     )
-    SELECT id, title, author, category, publish_date, 
+    SELECT id, title, author, category,
            1 - (embedding <-> %s::vector) AS similarity
     FROM filtered_docs
     ORDER BY embedding <-> %s::vector

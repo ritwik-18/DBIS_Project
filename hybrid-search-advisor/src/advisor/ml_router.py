@@ -36,15 +36,13 @@ class MLExecutionRouter:
     def predict_optimal_path(self, strictness: float) -> str:
         """
         The ML / Heuristic decision engine.
-        - strictness < 0.8 (broad filter): Path A (Vector First / HNSW)
-        - strictness >= 0.8 (strict filter): Path B (Filter First / Exact Math)
-        
-        Note: Future ML model will replace this threshold with a trained prediction 
-        based on pg_stats and vector distribution.
+        - strictness >= 0.8: Path B (Filter First / Exact Math)
+        - strictness >= 0.3: Path A Tuned (Danger Zone! Inject ef_search)
+        - strictness < 0.3: Path A (Vector First / Standard HNSW)
         """
-        THRESHOLD = 0.80 
-        
-        if strictness >= THRESHOLD:
+        if strictness >= 0.80:
             return "PATH_B"
+        elif strictness >= 0.30:
+            return "PATH_A_TUNED"
         else:
             return "PATH_A"

@@ -20,7 +20,11 @@ class HybridSearchProxy:
         clauses = []
         values = []
         for key, value in filters.items():
-            clauses.append(f"{key} = %s")
+            # If the key already has an operator like > or <, don't add an equals sign
+            if any(op in key for op in ['=', '<', '>']):
+                clauses.append(f"{key} %s")
+            else:
+                clauses.append(f"{key} = %s")
             values.append(value)
             
         return " AND ".join(clauses), values
@@ -31,36 +35,41 @@ class HybridSearchProxy:
         """
         filter_clause, filter_values = self._build_filter_clause(filters)
         
-        # 1. Ask the ML Router to evaluate filter strictness
+        # 1. Evaluate strictness and get optimal path
         strictness = self.router.calculate_filter_strictness(filter_clause, tuple(filter_values))
-        
-        # 2. ML Router predicts the optimal path
         chosen_path = self.router.predict_optimal_path(strictness)
         
         print(f"[PROXY ALERT] Filter Strictness: {strictness:.2f} | Routing to: {chosen_path}")
 
-        # 3. Format the SQL based on the routing decision
-        if chosen_path == "PATH_A":
-            sql = PATH_A_QUERY.format(filter_clause=filter_clause)
-        else:
-            sql = PATH_B_QUERY.format(filter_clause=filter_clause)
-
-        # 4. Prepare parameters (vector, vector again for ordering, limit)
-        # Note: pgvector requires string representation of arrays
+        # 2. Format SQL and correctly order the parameters!
         vector_str = "[" + ",".join(map(str, query_vector)) + "]"
-        query_params = tuple(filter_values) + (vector_str, vector_str, top_k)
+        
+        if chosen_path == "PATH_B":
+            # PATH B order: Filter, Vector, Vector, Limit
+            query_params = tuple(filter_values) + (vector_str, vector_str, top_k)
+            sql = PATH_B_QUERY.format(filter_clause=filter_clause)
+        else:
+            # PATH A order: Vector, Filter, Vector, Limit
+            query_params = (vector_str,) + tuple(filter_values) + (vector_str, top_k)
+            sql = PATH_A_QUERY.format(filter_clause=filter_clause)
 
-        # 5. Execute via the optimal path
+        # 3. Execute via the optimal path
         with self.conn.cursor() as cur:
-            cur.execute(sql, query_params)
-            results = cur.fetchall()
-            
-            # Fetch column names
-            colnames = [desc[0] for desc in cur.description]
-            
-            # Return as list of dictionaries for clean API output
-            return [dict(zip(colnames, row)) for row in results]
+            if chosen_path == "PATH_A_TUNED":
+                # Dynamic ACORN Simulation: Inject higher search depth
+                cur.execute("BEGIN;")
+                cur.execute("SET LOCAL hnsw.ef_search = 200;")
+                cur.execute(sql, query_params)
+            else:
+                cur.execute(sql, query_params)
 
-# Example usage (assuming DB connection is established):
-# proxy = HybridSearchProxy(db_connection)
-# results = proxy.execute_hybrid_search(query_vector=[0.1, 0.5, ...], filters={'category': 'Physics'})
+            # 4. Fetch the results IMMEDIATELY
+            results = cur.fetchall()
+            colnames = [desc[0] for desc in cur.description]
+            formatted_results = [dict(zip(colnames, row)) for row in results]
+
+            # 5. Clean up the transaction if we opened one for the Danger Zone
+            if chosen_path == "PATH_A_TUNED":
+                cur.execute("COMMIT;")
+
+            return formatted_results

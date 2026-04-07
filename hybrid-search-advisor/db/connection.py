@@ -16,8 +16,9 @@ def get_db_connection():
         database="hybrid_search",
         user="admin",
         password="password",
-        port="5432"
+        port="5454"
     )
+    conn.autocommit = False
     return conn
 
 if __name__ == "__main__":
