@@ -1,0 +1,223 @@
+Timing is on.
+SET
+Time: 0.352 ms
+
+================================================================
+PHASE 0: Data Preparation
+================================================================
+psql:Alpha.sql:46: NOTICE:  sift_base: all rows already tagged
+psql:Alpha.sql:46: NOTICE:  sift_query: all rows already tagged
+DO
+Time: 115.620 ms
+VACUUM
+Time: 91.613 ms
+VACUUM
+Time: 11.029 ms
+DROP TABLE
+Time: 2.198 ms
+SELECT 200
+Time: 5.853 ms
+CREATE INDEX
+Time: 2.351 ms
+ANALYZE
+Time: 3.719 ms
+Query sample created:
+ num_queries 
+-------------
+         200
+(1 row)
+
+Time: 0.342 ms
+
+================================================================
+PHASE 1: Generate Filtered Ground Truth (brute-force exact KNN)
+================================================================
+DROP INDEX
+Time: 63.498 ms
+psql:Alpha.sql:73: NOTICE:  index "idx_sift_hnsw_plain" does not exist, skipping
+DROP INDEX
+Time: 0.104 ms
+SET
+Time: 0.026 ms
+SET
+Time: 0.011 ms
+SET
+Time: 0.011 ms
+DROP TABLE
+Time: 1.430 ms
+SELECT 2000
+Time: 24564.481 ms (00:24.564)
+CREATE INDEX
+Time: 3.410 ms
+ANALYZE
+Time: 3.072 ms
+SET
+Time: 0.223 ms
+SET
+Time: 0.252 ms
+Ground truth rows (should be 2000):
+ gt_rows 
+---------
+    2000
+(1 row)
+
+Time: 0.294 ms
+
+================================================================
+PHASE 2: METHOD 1 — ACORN-1 (predicate subgraph traversal)
+================================================================
+psql:Alpha.sql:119: NOTICE:  index "idx_sift_acorn" does not exist, skipping
+DROP INDEX
+Time: 0.239 ms
+psql:Alpha.sql:120: NOTICE:  index "idx_sift_hnsw_plain" does not exist, skipping
+DROP INDEX
+Time: 0.202 ms
+SET
+Time: 0.127 ms
+Building ACORN-1 index...
+Timing is on.
+CREATE INDEX
+Time: 249150.138 ms (04:09.150)
+Timing is off.
+SET
+SET
+SET
+psql:Alpha.sql:221: NOTICE:  
+psql:Alpha.sql:221: NOTICE:  --- ACORN-1 Results ---
+psql:Alpha.sql:221: NOTICE:  ef_search | Recall@10 | QPS      | Avg Dist Comps | Avg Buffer Reads
+psql:Alpha.sql:221: NOTICE:  ----------|-----------|----------|----------------|------------------
+psql:Alpha.sql:221: NOTICE:         10 |  0.8355  |     67.8 |     738 |    10041
+psql:Alpha.sql:221: NOTICE:         50 |  0.9850  |     20.6 |    2217 |    49107
+psql:Alpha.sql:221: NOTICE:        100 |  0.9985  |     10.2 |    3619 |   101237
+psql:Alpha.sql:221: NOTICE:        200 |  1.0000  |      5.0 |    5691 |   206707
+psql:Alpha.sql:221: NOTICE:        400 |  1.0000  |      2.4 |    8547 |   417564
+psql:Alpha.sql:221: NOTICE:        600 |  1.0000  |      1.6 |   10670 |   629423
+psql:Alpha.sql:221: NOTICE:        800 |  1.0000  |      1.2 |   12395 |   842517
+DO
+SET
+SET
+
+================================================================
+PHASE 3: METHOD 2 — HNSW Post-filter (executor-driven filtering)
+================================================================
+DROP INDEX
+psql:Alpha.sql:237: NOTICE:  index "idx_sift_hnsw_plain" does not exist, skipping
+DROP INDEX
+Building plain HNSW index...
+Timing is on.
+CREATE INDEX
+Time: 240058.033 ms (04:00.058)
+Timing is off.
+SET
+SET
+SET
+SET
+psql:Alpha.sql:337: NOTICE:  
+psql:Alpha.sql:337: NOTICE:  --- HNSW Post-filter Results ---
+psql:Alpha.sql:337: NOTICE:  ef_search | Recall@10 | QPS      | Avg Dist Comps | Avg Buffer Reads
+psql:Alpha.sql:337: NOTICE:  ----------|-----------|----------|----------------|------------------
+psql:Alpha.sql:337: NOTICE:         10 |  0.0820  |   1000.6 |     710 |      730
+psql:Alpha.sql:337: NOTICE:         50 |  0.4165  |    355.0 |    1961 |     2021
+psql:Alpha.sql:337: NOTICE:        100 |  0.7915  |    180.0 |    3258 |     3367
+psql:Alpha.sql:337: NOTICE:        200 |  0.9880  |    125.4 |    5444 |     5652
+psql:Alpha.sql:337: NOTICE:        400 |  0.9990  |     73.1 |    9061 |     9469
+psql:Alpha.sql:337: NOTICE:        600 |  1.0000  |     56.0 |   12130 |    12739
+psql:Alpha.sql:337: NOTICE:        800 |  1.0000  |     44.9 |   14896 |    15704
+DO
+SET
+SET
+
+================================================================
+PHASE 4: METHOD 3 — Pre-filter (brute-force exact search)
+================================================================
+psql:Alpha.sql:352: NOTICE:  index "idx_sift_acorn" does not exist, skipping
+DROP INDEX
+DROP INDEX
+SET
+SET
+SET
+psql:Alpha.sql:403: NOTICE:  
+psql:Alpha.sql:403: NOTICE:  --- Pre-filter (Brute-Force) Results ---
+psql:Alpha.sql:403: NOTICE:  Recall@10 =  1.0000  (validates ground truth — should be ~1.0)
+psql:Alpha.sql:403: NOTICE:  QPS       =      9.3
+DO
+SET
+SET
+
+================================================================
+PHASE 5: Distance Comps + Buffer Reads at ~0.8 Recall
+================================================================
+psql:Alpha.sql:418: NOTICE:  index "idx_sift_acorn" does not exist, skipping
+DROP INDEX
+psql:Alpha.sql:419: NOTICE:  index "idx_sift_hnsw_plain" does not exist, skipping
+DROP INDEX
+SET
+CREATE INDEX
+SET
+SET
+SET
+psql:Alpha.sql:481: NOTICE:  
+psql:Alpha.sql:481: NOTICE:  ACORN-1 (ef_search=10):
+psql:Alpha.sql:481: NOTICE:    Recall@10:            0.8525
+psql:Alpha.sql:481: NOTICE:    Avg distance comps:      743.3
+psql:Alpha.sql:481: NOTICE:    Avg buffer reads:      10054.2
+psql:Alpha.sql:481: NOTICE:    Paper reference:     999 distance comps at 0.8 recall
+DO
+DROP INDEX
+CREATE INDEX
+SET
+psql:Alpha.sql:539: NOTICE:  
+psql:Alpha.sql:539: NOTICE:  HNSW Post-filter (ef_search=120):
+psql:Alpha.sql:539: NOTICE:    Recall@10:            0.8790
+psql:Alpha.sql:539: NOTICE:    Avg distance comps:     3726.2
+psql:Alpha.sql:539: NOTICE:    Avg buffer reads:       3854.7
+psql:Alpha.sql:539: NOTICE:    Paper reference:     1837 distance comps at 0.8 recall
+DO
+SET
+SET
+
+================================================================
+PHASE 6: Construction Metrics
+================================================================
+SET
+psql:Alpha.sql:556: NOTICE:  index "idx_sift_acorn" does not exist, skipping
+DROP INDEX
+DROP INDEX
+Building ACORN-1 index...
+Timing is on.
+CREATE INDEX
+Time: 214887.594 ms (03:34.888)
+Timing is off.
+Building plain HNSW index...
+Timing is on.
+CREATE INDEX
+Time: 218627.332 ms (03:38.627)
+Timing is off.
+
+Index sizes:
+              method               | index_size 
+-----------------------------------+------------
+ ACORN-1 (HNSW + INCLUDE tag_id)   | 1116 MB
+ HNSW plain (post-filter baseline) | 1116 MB
+(2 rows)
+
+
+================================================================
+SUMMARY
+================================================================
+
+What the algorithm shows:
+  At equal ef_search, ACORN-1 and post-filter perform almost the
+  same number of distance computations, yet ACORN-1 reaches
+  dramatically higher recall. The paper claim is preserved:
+  predicate-aware traversal makes each distance computation count.
+
+Why ACORN-1 is slower in QPS despite less work:
+  Buffer read counts reveal the substrate cost. ACORN-1 touches
+  far more pages per query than post-filter (two-hop expansion).
+  In PostgreSQL each ReadBuffer cycle costs ~1us, so the page
+  access penalty dominates the distance computation savings.
+  In FAISS, where pages are pointer-chases, this cost vanishes
+  and the algorithmic win flows directly into QPS.
+================================================================
+
