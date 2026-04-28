@@ -4,7 +4,7 @@ An implementation of **ACORN-1** (ANN Constraint-Optimized Retrieval Network) on
 
 ## What this is
 
-Standard HNSW vector search treats the index as predicate-blind: it finds the nearest vectors, then filters by metadata afterward (post-filtering). For low-selectivity predicates or workloads with negative query correlation, this wastes most of its work on non-matching candidates and often fails to reach high recall.
+Standard HNSW search is predicate-blind: it finds the nearest vectors, then filters by metadata afterward (post-filtering). For low-selectivity predicates or workloads with negative query correlation, this wastes most of its work on non-matching candidates and often fails to reach high recall.
 
 ACORN-1 changes the search algorithm itself. At each visited node during graph traversal, instead of looking only at direct neighbors, it expands to two-hop neighbors and filters by predicate. Non-matching nodes act as "bridges" that connect predicate-matching regions of the graph that would otherwise be unreachable.
 
@@ -102,7 +102,7 @@ The paper reports ACORN-1 achieving 2-10× higher QPS than post-filter at fixed 
 
 Distance computation, which the paper assumes is the bottleneck, is a tiny fraction of total cost in our setting. The algorithmic property (fewer distance computations to reach a given recall) still holds — it just doesn't translate to higher QPS because distance computation isn't the limiting factor.
 
-## Optimizations in Future:
+## Future Optimizations:
 
 Three I/O redundancies were identified during development:
 
