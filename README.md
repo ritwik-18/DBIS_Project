@@ -102,11 +102,11 @@ The paper reports ACORN-1 achieving 2-10× higher QPS than post-filter at fixed 
 
 Distance computation, which the paper assumes is the bottleneck, is a tiny fraction of total cost in our setting. The algorithmic property (fewer distance computations to reach a given recall) still holds — it just doesn't translate to higher QPS because distance computation isn't the limiting factor.
 
-## Optimizations applied
+## Optimizations in Future:
 
 Three I/O redundancies were identified during development:
 
-**Double-fetch (fixed):** the original implementation read each candidate's element page twice — once to check the label, once to compute the distance. Fixed by computing distance during the same `ReadBuffer` that reads the label, and passing the loaded element + distance through parallel arrays alongside the existing `unvisited[]` array. The `HnswUnvisited` union was left untouched.
+**Double-fetch :** the original implementation read each candidate's element page twice — once to check the label, once to compute the distance. 
 
 **Hash thrashing (intentionally not fixed):** the local dedup hash is created and destroyed on every `HnswLoadUnvisitedAcorn` call. Could be amortized by passing a reusable hash from the caller. Left as future work because the fix has correctness implications around hash lifetime and `tmpCtx` interaction.
 
