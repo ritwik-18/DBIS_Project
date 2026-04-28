@@ -79,18 +79,24 @@ The `Alpha.sql` script reproduces the SIFT1M benchmark from Section 7 of the pap
 Each phase drops all indices and rebuilds only what it needs, so methods don't contaminate each other.
 
 ## Results on SIFT1M
+## Recall, QPS, and Distance Computations
+ 
+Both methods measured at the same `ef_search` values:
+ 
+| ef_search | ACORN-1 Recall | ACORN-1 QPS | ACORN-1 Dist Comps | Post-filter Recall | Post-filter QPS | Post-filter Dist Comps |
+|-----------|---------------|-------------|---------------------|---------------------|-----------------|------------------------|
+| 10 | 0.83 | 84 | 731 | 0.09 | 953 | 731 |
+| 50 | 0.99 | 20 | 2,214 | 0.41 | 361 | 1,956 |
+| 100 | 1.00 | 9 | 3,605 | 0.76 | 214 | 3,233 |
+| 200 | 1.00 | 4 | 5,656 | 0.98 | 128 | 5,401 |
+| 400 | 1.00 | 2 | 8,522 | 0.996 | 77 | 8,962 |
+| 600 | 1.00 | 1.4 | 10,613 | 0.999 | 57 | 12,015 |
+| 800 | 1.00 | 1.0 | 12,295 | 0.999 | 45 | 14,775 |
 
-Recall@10 vs QPS at varying `ef_search`:
-
-| ef_search | ACORN-1 Recall | ACORN-1 QPS | Post-filter Recall | Post-filter QPS |
-|-----------|---------------|-------------|---------------------|-----------------|
-| 10 | 0.82 | ~80 | 0.09 | ~810 |
-| 50 | 0.99 | ~21 | 0.42 | ~280 |
-| 100 | 1.00 | ~11 | 0.78 | ~170 |
-| 200 | 1.00 | ~4 | 0.99 | ~98 |
-| 800 | 1.00 | ~1 | 1.00 | ~35 |
 
 ACORN-1 reaches high recall (>0.99) at much lower `ef_search` than post-filter, confirming the algorithmic claim from the paper. At equivalent recall, post-filter has higher QPS in our PostgreSQL implementation — see "Why the QPS gap" below.
+## What the algorithm shows
+At equal ef_search, ACORN-1 and HNSW post-filter perform almost the same number of distance computations, yet ACORN-1 reaches dramatically higher recall. This is the paper's central claim reproduced cleanly: predicate-aware traversal makes each distance computation count. ACORN-1 spends its compute budget on candidates that can actually appear in the result set, while post-filter wastes most of its work on non-matching nodes that get discarded by the executor. To reach the same ~0.99 recall, ACORN-1 needs only 2,214 distance computations versus post-filter's 5,401 — a 2.4× reduction, consistent with the paper's reported 1.84× ratio.
 
 ## Why the QPS gap vs the paper
 
